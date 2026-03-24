@@ -10,9 +10,9 @@ from battery_opt.config import load_assignment6_config, load_case_config
 
 
 def main() -> None:
-    case_config = load_case_config("configs/base_case.json")
-    analysis_config = load_assignment6_config("configs/assignment6.json")
-    output_dir = "outputs/assignment6"
+    case_config = load_case_config(PROJECT_ROOT / "configs" / "base_case.json")
+    analysis_config = load_assignment6_config(PROJECT_ROOT / "configs" / "assignment6.json")
+    output_dir = PROJECT_ROOT / "outputs" / "assignment6"
     run_assignment6_suite(case_config, analysis_config, output_dir)
     print(f"Wrote assignment 6 outputs to {output_dir}")
 

@@ -136,11 +136,12 @@ def _read_json(path: str | Path) -> dict[str, Any]:
 
 
 def load_case_config(path: str | Path) -> CaseConfig:
-    raw = _read_json(path)
+    config_path = Path(path)
+    raw = _read_json(config_path)
     return CaseConfig(
         name=raw["name"],
         data=DataConfig(
-            csv_path=Path(raw["data"]["csv_path"]),
+            csv_path=_resolve_path(raw["data"]["csv_path"], config_path.parent),
             start_index=raw["data"].get("start_index", 0),
             periods=raw["data"].get("periods"),
         ),
@@ -260,3 +261,10 @@ def _scenario_override_kwargs(raw: dict[str, Any]) -> dict[str, Any]:
         "grid_fee_eur_per_kwh": raw.get("grid_fee_eur_per_kwh"),
         "degradation_cost_eur_per_kwh_throughput": raw.get("degradation_cost_eur_per_kwh_throughput"),
     }
+
+
+def _resolve_path(raw_path: str | Path, base_dir: Path) -> Path:
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        return candidate
+    return (base_dir / candidate).resolve()

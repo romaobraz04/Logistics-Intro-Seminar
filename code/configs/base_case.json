@@ -1,7 +1,7 @@
 {
   "name": "case1_battery_optimization",
   "data": {
-    "csv_path": "net_demand_and_price.csv",
+    "csv_path": "../../net_demand_and_price.csv",
     "start_index": 0,
     "periods": 168
   },

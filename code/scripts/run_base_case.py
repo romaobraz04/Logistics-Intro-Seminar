@@ -10,7 +10,7 @@ from battery_opt.solve import solve_case
 
 
 def main() -> None:
-    config = load_case_config("configs/base_case.json")
+    config = load_case_config(PROJECT_ROOT / "configs" / "base_case.json")
     for formulation in (Formulation.BASIC, Formulation.TIGHTER):
         result = solve_case(config, formulation)
         print(
