@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-import gurobipy as gp
 import pandas as pd
 
 from ..config import CaseConfig, DatasetScope, Formulation, FractionWindowConfig, ScenarioOverrideConfig, WindowPosition
@@ -136,8 +135,8 @@ def apply_scenario_overrides(
 def safe_solve(case_config: CaseConfig, formulation: Formulation, **kwargs):
     try:
         return solve_case(case_config, formulation, **kwargs), None
-    except gp.GurobiError as exc:
-        return None, f"GUROBI_ERROR: {exc}"
+    except Exception as exc:
+        return None, f"SOLVER_ERROR: {exc}"
 
 
 def window_for_fraction(

@@ -44,7 +44,7 @@ def summarize_schedule(schedule: pd.DataFrame, battery: BatteryConfig) -> dict[s
     surplus_exported_kwh = float(surplus_exported.sum())
     local_self_consumed_kwh = float(local_self_consumed.sum())
     self_consumption_rate = (
-        local_self_consumed_kwh / local_surplus_kwh if local_surplus_kwh > 0.0 else 0.0
+        local_self_consumed_kwh / local_surplus_kwh if local_surplus_kwh > 0.0 else 1.0
     )
 
     mode = schedule["mode"]

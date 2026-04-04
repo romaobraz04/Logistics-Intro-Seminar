@@ -1,3 +1,0 @@
-scenario,description,formulation,window_label,status,periods,objective_eur,runtime_seconds,total_grid_exchange_kwh,throughput_kwh,self_consumption_rate,custom_parameters,extension_metric_1,extension_metric_2
-extension_template_price_shift,Template scenario for future assignment 7 experiments.,tighter,50%_middle,OPTIMAL,84,6.666011805263158,0.014000177383422852,111.31868421052633,104.88157894736842,0.370764049142332,"{'question': 'replace this with your assignment 7 hypothesis', 'owner': 'team'}",5.03,5.005
-extension_template_policy_mix,Example of combining grid fees and degradation in one scenario.,tighter,full_configured_scope,OPTIMAL,168,7.6406044464148195,0.023000001907348633,116.3278559764543,135.1198559764543,0.6857399472335012,{'policy_case': True},4.508,5.025

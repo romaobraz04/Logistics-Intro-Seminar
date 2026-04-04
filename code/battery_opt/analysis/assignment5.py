@@ -81,6 +81,15 @@ def summarize_assignment5(results: pd.DataFrame) -> pd.DataFrame:
     summary["objective_change_from_baseline_eur"] = (
         summary["objective_eur"] - summary["baseline_objective_eur"]
     )
+    summary["total_profit_loss_eur"] = (
+        summary["baseline_objective_eur"] - summary["objective_eur"]
+    )
+    summary["direct_fee_burden_eur"] = (
+        summary["grid_fee_eur_per_kwh"] * summary["total_grid_exchange_kwh"]
+    )
+    summary["behavioural_cost_eur"] = (
+        summary["total_profit_loss_eur"] - summary["direct_fee_burden_eur"]
+    )
     summary["grid_exchange_change_from_baseline_kwh"] = (
         summary["total_grid_exchange_kwh"] - summary["baseline_grid_exchange_kwh"]
     )
@@ -122,6 +131,31 @@ def run_assignment5_suite(
         "Hours with Price Below Fee Threshold (Export Suppressed)",
         output_path / "assignment5_hours_below_fee.png",
     )
+    _plot_assignment5_metric(
+        results,
+        "equivalent_cycles",
+        "Equivalent Full Cycles by Grid Fee",
+        output_path / "assignment5_equivalent_cycles_by_fee.png",
+    )
+    _plot_assignment5_metric(
+        results,
+        "total_import_kwh",
+        "Total Grid Import by Grid Fee",
+        output_path / "assignment5_import_by_fee.png",
+    )
+    _plot_assignment5_metric(
+        results,
+        "total_export_kwh",
+        "Total Grid Export by Grid Fee",
+        output_path / "assignment5_export_by_fee.png",
+    )
+    if not summary.empty:
+        _plot_assignment5_metric(
+            summary,
+            "behavioural_cost_eur",
+            "Behavioural Cost by Grid Fee",
+            output_path / "assignment5_behavioural_cost_by_fee.png",
+        )
 
     return {
         "assignment5_grid_fee_sweep": results,

@@ -1,3 +1,3 @@
 analysis,formulation,relaxed,status,periods,objective_eur,runtime_seconds,mip_gap,node_count,fractional_mode_count
-full_horizon,basic,False,OPTIMAL,168,6.78120985263158,0.03399991989135742,0.0,1.0,0
-full_horizon,tighter,False,OPTIMAL,168,6.78120985263158,0.042999982833862305,0.0,1.0,0
+full_horizon,basic,False,OPTIMAL,7895,32.259181338199994,20.033458899939433,0.0,1.0,0
+full_horizon,tighter,False,OPTIMAL,7895,32.259181338199994,4.298559800023213,3.524169957375656e-15,1.0,0
