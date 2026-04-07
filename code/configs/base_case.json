@@ -3,7 +3,7 @@
   "data": {
     "csv_path": "../../net_demand_and_price.csv",
     "start_index": 0,
-    "periods": 168
+    "periods": null
   },
   "battery": {
     "initial_soc_kwh": 2.0,
@@ -17,7 +17,7 @@
     "degradation_cost_eur_per_kwh_throughput": 0.0
   },
   "solver": {
-    "time_limit_seconds": 120,
+    "time_limit_seconds": 600,
     "mip_gap": 0.0,
     "threads": 0,
     "output_flag": 0

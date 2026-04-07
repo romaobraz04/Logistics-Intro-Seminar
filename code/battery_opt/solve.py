@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import time
 from typing import Callable
 
-import gurobipy as gp
+import highspy
 import pandas as pd
-from gurobipy import GRB
+import pulp
 
 from .config import CaseConfig, Formulation
 from .data import load_timeseries
@@ -19,12 +20,11 @@ BUILDERS: dict[Formulation, Callable[..., ModelArtifacts]] = {
 }
 
 STATUS_NAMES = {
-    GRB.OPTIMAL: "OPTIMAL",
-    GRB.INFEASIBLE: "INFEASIBLE",
-    GRB.TIME_LIMIT: "TIME_LIMIT",
-    GRB.SUBOPTIMAL: "SUBOPTIMAL",
-    GRB.INF_OR_UNBD: "INF_OR_UNBD",
-    GRB.UNBOUNDED: "UNBOUNDED",
+    pulp.constants.LpStatusOptimal: "OPTIMAL",
+    pulp.constants.LpStatusNotSolved: "NOT_SOLVED",
+    pulp.constants.LpStatusInfeasible: "INFEASIBLE",
+    pulp.constants.LpStatusUnbounded: "UNBOUNDED",
+    pulp.constants.LpStatusUndefined: "UNDEFINED",
 }
 
 
@@ -47,50 +47,71 @@ def solve_case(
 
     effective_config = case_config if case_config.time_step_hours else _with_time_step(case_config, inferred_dt)
     artifacts = BUILDERS[formulation](effective_config, data, relax_binaries=relax_binaries)
-    artifacts.model.optimize()
-    schedule = _extract_schedule(artifacts)
 
+    solver = pulp.HiGHS(
+        msg=0,
+        timeLimit=effective_config.solver.time_limit_seconds,
+        gapRel=effective_config.solver.mip_gap,
+        threads=effective_config.solver.threads,
+    )
+    start_time = time.perf_counter()
+    artifacts.problem.solve(solver)
+    elapsed = time.perf_counter() - start_time
+
+    schedule = _extract_schedule(artifacts)
     summary = summarize_schedule(schedule, effective_config.battery)
     summary["time_step_hours"] = artifacts.time_step_hours
+
+    objective = pulp.value(artifacts.problem.objective)
+    mip_gap, best_bound, node_count = _extract_highs_stats(artifacts.problem)
 
     return OptimizationResult(
         formulation=formulation.value,
         relaxed=relax_binaries,
-        status_code=artifacts.model.Status,
-        status_name=STATUS_NAMES.get(artifacts.model.Status, str(artifacts.model.Status)),
-        objective_value_eur=_safe_model_attr(artifacts.model, "ObjVal"),
-        runtime_seconds=float(artifacts.model.Runtime),
-        mip_gap=_safe_model_attr(artifacts.model, "MIPGap"),
-        best_bound=_safe_model_attr(artifacts.model, "ObjBound"),
-        node_count=_safe_model_attr(artifacts.model, "NodeCount"),
+        status_code=artifacts.problem.status,
+        status_name=STATUS_NAMES.get(artifacts.problem.status, str(artifacts.problem.status)),
+        objective_value_eur=objective,
+        runtime_seconds=elapsed,
+        mip_gap=mip_gap,
+        best_bound=best_bound,
+        node_count=node_count,
         schedule=schedule,
         summary=summary,
     )
 
 
+def _extract_highs_stats(
+    problem: pulp.LpProblem,
+) -> tuple[float | None, float | None, float | None]:
+    try:
+        sol = problem.solverModel
+        if sol is None:
+            return None, None, None
+        info = sol.getInfoValue
+        mip_gap = info("mip_gap")[1]
+        best_bound = info("mip_dual_bound")[1]
+        node_count = float(info("mip_node_count")[1])
+        return mip_gap, best_bound, node_count
+    except Exception:
+        return None, None, None
+
+
 def _extract_schedule(artifacts: ModelArtifacts) -> pd.DataFrame:
-    if artifacts.model.SolCount == 0:
+    if artifacts.problem.status != pulp.constants.LpStatusOptimal:
         return pd.DataFrame()
 
     df = artifacts.data.copy()
     dt = artifacts.time_step_hours
-    df["charge_kw"] = [artifacts.charge_kw[t].X for t in range(len(df))]
-    df["discharge_kw"] = [artifacts.discharge_kw[t].X for t in range(len(df))]
-    df["soc_kwh"] = [artifacts.soc[t].X for t in range(len(df))]
-    df["mode"] = [artifacts.mode[t].X for t in range(len(df))]
-    df["net_grid_kwh"] = [artifacts.net_grid_kwh[t].X for t in range(len(df))]
+    df["charge_kw"] = [artifacts.charge_kw[t].varValue for t in range(len(df))]
+    df["discharge_kw"] = [artifacts.discharge_kw[t].varValue for t in range(len(df))]
+    df["soc_kwh"] = [artifacts.soc[t].varValue for t in range(len(df))]
+    df["mode"] = [artifacts.mode[t].varValue for t in range(len(df))]
+    df["net_grid_kwh"] = [artifacts.net_grid_kwh[t].varValue for t in range(len(df))]
     df["charge_kwh"] = df["charge_kw"] * dt
     df["discharge_kwh"] = df["discharge_kw"] * dt
     df["grid_import_kwh"] = df["net_grid_kwh"].clip(lower=0.0)
     df["grid_export_kwh"] = (-df["net_grid_kwh"]).clip(lower=0.0)
     return df
-
-
-def _safe_model_attr(model: gp.Model, attribute: str) -> float | None:
-    try:
-        return float(getattr(model, attribute))
-    except (gp.GurobiError, AttributeError):
-        return None
 
 
 def _with_time_step(case_config: CaseConfig, time_step_hours: float) -> CaseConfig:

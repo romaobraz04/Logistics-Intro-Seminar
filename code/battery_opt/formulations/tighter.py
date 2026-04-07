@@ -23,13 +23,13 @@ def build_model(
 
     for t in range(len(data)):
         previous_soc = previous_soc_value(artifacts, t, battery.initial_soc_kwh)
-        artifacts.model.addConstr(
+        artifacts.problem += (
             previous_soc >= battery.soc_min_kwh + dt * artifacts.discharge_kw[t] / battery.discharge_efficiency,
-            name=f"tight_discharge_soc[{t}]",
+            f"tight_discharge_soc_{t}",
         )
-        artifacts.model.addConstr(
+        artifacts.problem += (
             previous_soc <= battery.soc_max_kwh - battery.charge_efficiency * dt * artifacts.charge_kw[t],
-            name=f"tight_charge_soc[{t}]",
+            f"tight_charge_soc_{t}",
         )
 
     return artifacts
