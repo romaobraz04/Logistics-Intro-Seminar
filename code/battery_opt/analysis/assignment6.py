@@ -123,11 +123,19 @@ def _plot_assignment6_metric(results: pd.DataFrame, metric: str, title: str, out
         columns="formulation",
         values=metric,
     )
-    ax = pivot.plot(marker="o", figsize=(8, 4))
+    _BW_LINE_STYLES = [
+        {"marker": "o", "markersize": 8, "linestyle": "-",  "linewidth": 2.0},
+        {"marker": "s", "markersize": 8, "linestyle": "--", "linewidth": 1.5,
+         "markerfacecolor": "none", "markeredgewidth": 1.5},
+    ]
+    fig, ax = plt.subplots(figsize=(8, 4))
+    for col, style in zip(pivot.columns, _BW_LINE_STYLES):
+        ax.plot(pivot.index, pivot[col], label=col, **style)
     ax.set_title(title)
     ax.set_xlabel("Degradation cost (EUR/kWh throughput)")
     ax.set_ylabel(metric)
+    ax.legend()
     ax.grid(True, alpha=0.3)
-    ax.figure.tight_layout()
-    ax.figure.savefig(output_path, dpi=150)
-    plt.close(ax.figure)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)

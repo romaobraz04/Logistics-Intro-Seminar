@@ -63,6 +63,7 @@ python code/scripts/run_assignment5.py
 python code/scripts/run_assignment6.py
 python code/scripts/run_assignment7.py
 ```
+<<<<<<< Updated upstream
 
 ---
 
@@ -83,3 +84,5 @@ python code/scripts/run_assignment7.py
 2. Add a corresponding config dataclass and loader to `config.py`.
 3. Add a new subcommand to `cli.py` following the pattern of the existing assignment parsers.
 4. Add a `code/scripts/run_my_analysis.py` entry-point script.
+=======
+>>>>>>> Stashed changes
