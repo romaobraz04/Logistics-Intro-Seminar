@@ -34,6 +34,7 @@ def solve_case(
     *,
     relax_binaries: bool = False,
     prepared_data: pd.DataFrame | None = None,
+    terminal_soc_kwh: float | None = None,
 ) -> OptimizationResult:
     formulation = Formulation(formulation)
     if prepared_data is None:
@@ -47,6 +48,13 @@ def solve_case(
 
     effective_config = case_config if case_config.time_step_hours else _with_time_step(case_config, inferred_dt)
     artifacts = BUILDERS[formulation](effective_config, data, relax_binaries=relax_binaries)
+
+    if terminal_soc_kwh is not None:
+        last_t = len(data) - 1
+        artifacts.problem += (
+            artifacts.soc[last_t] >= terminal_soc_kwh,
+            "terminal_soc_floor",
+        )
 
     solver = pulp.HiGHS(
         msg=0,

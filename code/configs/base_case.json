@@ -18,7 +18,7 @@
   },
   "solver": {
     "time_limit_seconds": 600,
-    "mip_gap": 0.0,
+    "mip_gap": 0.001,
     "threads": 0,
     "output_flag": 0
   }

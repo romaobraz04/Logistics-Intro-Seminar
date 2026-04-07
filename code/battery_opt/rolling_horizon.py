@@ -25,6 +25,8 @@ def solve_rolling_horizon(
     window: int,
     step: int,
     terminal_strategy: str = "hard_floor",
+    first_window: int | None = None,
+    first_step: int | None = None,
 ) -> dict[str, Any]:
     formulation = Formulation(formulation)
     battery = case_config.battery
@@ -35,10 +37,13 @@ def solve_rolling_horizon(
     current_soc = battery.initial_soc_kwh
     total_solve_time = 0.0
     n_subproblems = 0
+    is_first = True
 
     t_start = 0
     while t_start < T:
-        t_end = min(t_start + window, T)
+        cur_window = first_window if (is_first and first_window is not None) else window
+        cur_step = first_step if (is_first and first_step is not None) else step
+        t_end = min(t_start + cur_window, T)
         window_data = data.iloc[t_start:t_end].copy().reset_index(drop=True)
         W_len = len(window_data)
 
@@ -75,7 +80,7 @@ def solve_rolling_horizon(
         if artifacts.problem.status != pulp.constants.LpStatusOptimal:
             break
 
-        implement_end = min(step, W_len)
+        implement_end = min(cur_step, W_len)
         for t_local in range(implement_end):
             t_global = t_start + t_local
             row = {
@@ -93,7 +98,8 @@ def solve_rolling_horizon(
 
         last_implemented = implement_end - 1
         current_soc = artifacts.soc[last_implemented].varValue
-        t_start += step
+        t_start += cur_step
+        is_first = False
 
     schedule = pd.DataFrame(implemented_rows)
     if not schedule.empty:
@@ -114,7 +120,9 @@ def solve_rolling_horizon(
 
     deg_cost = battery.degradation_cost_eur_per_kwh_throughput
     if deg_cost > 0.0 and not schedule.empty:
-        total_profit -= deg_cost * float(schedule["discharge_kwh"].sum())
+        total_profit -= deg_cost * float(
+            (schedule["charge_kwh"] + schedule["discharge_kwh"]).sum()
+        )
 
     return {
         "schedule": schedule,

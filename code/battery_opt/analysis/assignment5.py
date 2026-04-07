@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,12 @@ import pandas as pd
 
 from ..config import Assignment5Config, CaseConfig, ScenarioOverrideConfig
 from .common import apply_scenario_overrides, load_analysis_data, safe_solve
+
+_SERIES_STYLES: dict[str, dict] = {
+    "basic":   {"marker": "o", "markersize": 8, "linestyle": "-",  "linewidth": 2.0},
+    "tighter": {"marker": "s", "markersize": 8, "linestyle": "--", "linewidth": 1.5,
+                "markerfacecolor": "none", "markeredgewidth": 1.5},
+}
 
 
 def _compute_no_battery_objective(data: pd.DataFrame, grid_fee: float) -> dict:
@@ -129,8 +136,19 @@ def run_assignment5_suite(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
+    t_wall_start = time.perf_counter()
     results = run_assignment5_grid_fee_sweep(case_config, assignment5_config)
+    t_wall_end = time.perf_counter()
     summary = summarize_assignment5(results)
+
+    # Print runtime table
+    print("\nAssignment 5 solve times:")
+    if "runtime_seconds" in results.columns:
+        time_cols = results[["formulation", "grid_fee_eur_per_kwh", "runtime_seconds"]].copy()
+        print(time_cols.to_string(index=False))
+        total_solver = results["runtime_seconds"].sum()
+        print(f"  Total solver time: {total_solver:.2f} s")
+    print(f"  Wall time:         {t_wall_end - t_wall_start:.2f} s\n")
 
     results.to_csv(output_path / "assignment5_grid_fee_sweep.csv", index=False)
     summary.to_csv(output_path / "assignment5_grid_fee_summary.csv", index=False)
@@ -217,6 +235,39 @@ def _plot_assignment5_metric(results: pd.DataFrame, metric: str, title: str, out
     ax.set_ylabel(metric)
     ax.legend()
     ax.grid(True, alpha=0.3)
+
+    has_diff_panel = "basic" in pivot.columns and "tighter" in pivot.columns
+    if has_diff_panel:
+        fig, (ax_top, ax_bot) = plt.subplots(
+            2, 1, figsize=(8, 7),
+            gridspec_kw={"height_ratios": [3, 1]},
+            sharex=True,
+        )
+    else:
+        fig, ax_top = plt.subplots(figsize=(8, 4))
+        ax_bot = None
+
+    # Top panel — absolute values
+    for col in pivot.columns:
+        kw = _SERIES_STYLES.get(col, {"marker": "s", "markersize": 8, "linestyle": "-.", "color": "black",
+                                      "markerfacecolor": "none", "markeredgewidth": 1.5})
+        ax_top.plot(pivot.index, pivot[col], label=col, **kw)
+    ax_top.set_title(title)
+    ax_top.set_ylabel(metric)
+    ax_top.legend()
+    ax_top.grid(True, alpha=0.3)
+
+    # Bottom panel — basic minus tighter difference
+    if has_diff_panel:
+        diff = pivot["basic"] - pivot["tighter"]
+        bar_colors = ["0.4" if d >= 0 else "white" for d in diff]
+        ax_bot.bar(pivot.index, diff, width=0.006, color=bar_colors, edgecolor="black")
+        ax_bot.axhline(0, color="black", linewidth=0.8, linestyle="--")
+        ax_bot.set_ylabel("basic − tighter (Δ)")
+        ax_bot.grid(True, axis="y", alpha=0.3)
+        if diff.abs().max() < 1e-6:
+            ax_bot.set_title("Formulations produce identical values", fontsize=8)
+        ax_bot.set_xlabel("Grid fee (EUR/kWh)")
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
