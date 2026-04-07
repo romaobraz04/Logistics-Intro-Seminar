@@ -8,7 +8,7 @@ from formulations.basic import Basic
 from formulations.params import PARAMS
 from formulations.tighter import Tighter
 
-from .metrics import (
+from ..metrics import (
     behavioural_cost,
     equivalent_full_cycles,
     self_comsumption_rate,
@@ -323,7 +323,9 @@ class assign5wrapper:
             ),
         ).reset_index(drop=True)
 
-    def _build_battery_incremental_value(self, summary_df: pd.DataFrame) -> pd.DataFrame:
+    def _build_battery_incremental_value(
+        self, summary_df: pd.DataFrame
+    ) -> pd.DataFrame:
         if summary_df.empty:
             return pd.DataFrame(
                 columns=[
@@ -355,13 +357,19 @@ class assign5wrapper:
         filename: str,
         formulations: list[str] | None = None,
     ) -> None:
-        valid = results_df[
-            (results_df["status"] == "OPTIMAL") & results_df[metric].notna()
-        ].copy() if "status" in results_df.columns else results_df[results_df[metric].notna()].copy()
+        valid = (
+            results_df[
+                (results_df["status"] == "OPTIMAL") & results_df[metric].notna()
+            ].copy()
+            if "status" in results_df.columns
+            else results_df[results_df[metric].notna()].copy()
+        )
         if valid.empty:
             return
 
-        formulations = formulations if formulations is not None else FORMULATION_ORDER
+        formulations = (
+            formulations if formulations is not None else list(FORMULATIONS.keys())
+        )
         fig, ax = plt.subplots(figsize=(9, 5))
         for formulation_name in formulations:
             subset = valid[valid["formulation"] == formulation_name].sort_values(

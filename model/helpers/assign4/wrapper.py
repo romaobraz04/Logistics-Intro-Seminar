@@ -30,14 +30,34 @@ def count_fractional_nodes(formulation, tol=1e-6):
     )
 
 
-def solve_lp_model(formulation_cls, data, params):
+def negative_price_fractional_mode_share(
+    formulation, negative_price_count: int, tol=1e-6
+):
+    if negative_price_count == 0:
+        return 0.0
+
+    negative_price_fractional_count = sum(
+        1
+        for t in range(formulation.periods)
+        if formulation.price.iloc[t] < 0
+        and formulation.dec_vars[f"mode_{t}"].varValue is not None
+        and tol < formulation.dec_vars[f"mode_{t}"].varValue < 1 - tol
+    )
+    return negative_price_fractional_count / negative_price_count
+
+
+def solve_lp_model(formulation_cls, data, params, negative_price_count: int):
     model = pulp.LpProblem(
         f"{formulation_cls.__name__}_LP",
         pulp.LpMaximize,
     )
     formulation = formulation_cls(model, data.copy(), params.copy(), lp=True, msg=False)
     formulation.run_model()
-    return pulp.value(model.objective), count_fractional_nodes(formulation)
+    return (
+        pulp.value(model.objective),
+        count_fractional_nodes(formulation),
+        negative_price_fractional_mode_share(formulation, negative_price_count),
+    )
 
 
 class assign4wrapper:
@@ -60,6 +80,7 @@ class assign4wrapper:
         self.loose_power_limit = loose_power_limit
         self.small_capacity = small_capacity
         self.large_capacity = large_capacity
+        self.negative_price_count = int((self.data["Price (EUR/kWh)"] < 0).sum())
 
     def run(self) -> pd.DataFrame:
         flat_prices_data = scenarios.flat_prices(self.data.copy())
@@ -109,8 +130,24 @@ class assign4wrapper:
         basic_gaps = [results[s]["basic_gap"] for s in scenarios_list]
         tighter_gaps = [results[s]["tighter_gap"] for s in scenarios_list]
 
-        ax.bar([i - width / 2 for i in x], basic_gaps, width, label="Basic Gap")
-        ax.bar([i + width / 2 for i in x], tighter_gaps, width, label="Tighter Gap")
+        ax.bar(
+            [i - width / 2 for i in x],
+            basic_gaps,
+            width,
+            label="Basic Gap",
+            hatch="//",
+            edgecolor="black",
+            linewidth=0.8,
+        )
+        ax.bar(
+            [i + width / 2 for i in x],
+            tighter_gaps,
+            width,
+            label="Tighter Gap",
+            hatch="xx",
+            edgecolor="black",
+            linewidth=0.8,
+        )
 
         ax.set_xlabel("Scenario")
         ax.set_ylabel("Gap")
@@ -132,253 +169,65 @@ class assign4wrapper:
         return results_df
 
     def run_baseline(self) -> dict:
-        # baseline
-        basic_mip = solve_model(Basic, self.data, PARAMS)
-        basic_lp, basic_lp_fractional_nodes = solve_lp_model(Basic, self.data, PARAMS)
-        basic_gap = basic_lp - basic_mip
-        tighter_mip = solve_model(Tighter, self.data, PARAMS)
-        tighter_lp, tighter_lp_fractional_nodes = solve_lp_model(
-            Tighter, self.data, PARAMS
-        )
-        tighter_gap = tighter_lp - tighter_mip
-
-        return {
-            "basic_mip": basic_mip,
-            "basic_lp": basic_lp,
-            "basic_gap": basic_gap,
-            "basic_lp_fractional_nodes": basic_lp_fractional_nodes,
-            "tighter_mip": tighter_mip,
-            "tighter_lp": tighter_lp,
-            "tighter_gap": tighter_gap,
-            "tighter_lp_fractional_nodes": tighter_lp_fractional_nodes,
-        }
+        return self._run_scenario(self.data, PARAMS)
 
     def run_flat_prices(self) -> dict:
         flat_prices_data = scenarios.flat_prices(self.data.copy())
-        flat_prices_basicmip = solve_model(Basic, flat_prices_data, PARAMS)
-        flat_prices_basiclp, flat_prices_basic_fractional_nodes = solve_lp_model(
-            Basic, flat_prices_data, PARAMS
-        )
-        flat_prices_basicgap = flat_prices_basiclp - flat_prices_basicmip
-        flat_prices_tightermip = solve_model(Tighter, flat_prices_data, PARAMS)
-        flat_prices_tighterlp, flat_prices_tighter_fractional_nodes = solve_lp_model(
-            Tighter, flat_prices_data, PARAMS
-        )
-        flat_prices_tightergap = flat_prices_tighterlp - flat_prices_tightermip
-
-        return {
-            "basic_mip": flat_prices_basicmip,
-            "basic_lp": flat_prices_basiclp,
-            "basic_gap": flat_prices_basicgap,
-            "basic_lp_fractional_nodes": flat_prices_basic_fractional_nodes,
-            "tighter_mip": flat_prices_tightermip,
-            "tighter_lp": flat_prices_tighterlp,
-            "tighter_gap": flat_prices_tightergap,
-            "tighter_lp_fractional_nodes": flat_prices_tighter_fractional_nodes,
-        }
+        return self._run_scenario(flat_prices_data, PARAMS)
 
     def run_price_scale(self) -> dict:
         price_scale_data = scenarios.price_scale(
             self.data.copy(), scale=self.price_scale
         )
-        price_scale_basicmip = solve_model(Basic, price_scale_data, PARAMS)
-        price_scale_basiclp, price_scale_basic_fractional_nodes = solve_lp_model(
-            Basic, price_scale_data, PARAMS
-        )
-        price_scale_basicgap = price_scale_basiclp - price_scale_basicmip
-        price_scale_tightermip = solve_model(Tighter, price_scale_data, PARAMS)
-        price_scale_tighterlp, price_scale_tighter_fractional_nodes = solve_lp_model(
-            Tighter, price_scale_data, PARAMS
-        )
-        price_scale_tightergap = price_scale_tighterlp - price_scale_tightermip
-
-        return {
-            "basic_mip": price_scale_basicmip,
-            "basic_lp": price_scale_basiclp,
-            "basic_gap": price_scale_basicgap,
-            "basic_lp_fractional_nodes": price_scale_basic_fractional_nodes,
-            "tighter_mip": price_scale_tightermip,
-            "tighter_lp": price_scale_tighterlp,
-            "tighter_gap": price_scale_tightergap,
-            "tighter_lp_fractional_nodes": price_scale_tighter_fractional_nodes,
-        }
+        return self._run_scenario(price_scale_data, PARAMS)
 
     def run_perfect_efficiency(self) -> dict:
         perfect_efficiency_params = scenarios.perfect_efficiency(PARAMS.copy())
-        perfect_efficiency_basicmip = solve_model(
-            Basic, self.data.copy(), perfect_efficiency_params
-        )
-        perfect_efficiency_basiclp, perfect_efficiency_basic_fractional_nodes = (
-            solve_lp_model(Basic, self.data.copy(), perfect_efficiency_params)
-        )
-        perfect_efficiency_basicgap = (
-            perfect_efficiency_basiclp - perfect_efficiency_basicmip
-        )
-        perfect_efficiency_tightermip = solve_model(
-            Tighter, self.data.copy(), perfect_efficiency_params
-        )
-        perfect_efficiency_tighterlp, perfect_efficiency_tighter_fractional_nodes = (
-            solve_lp_model(Tighter, self.data.copy(), perfect_efficiency_params)
-        )
-        perfect_efficiency_tightergap = (
-            perfect_efficiency_tighterlp - perfect_efficiency_tightermip
-        )
-
-        return {
-            "basic_mip": perfect_efficiency_basicmip,
-            "basic_lp": perfect_efficiency_basiclp,
-            "basic_gap": perfect_efficiency_basicgap,
-            "basic_lp_fractional_nodes": perfect_efficiency_basic_fractional_nodes,
-            "tighter_mip": perfect_efficiency_tightermip,
-            "tighter_lp": perfect_efficiency_tighterlp,
-            "tighter_gap": perfect_efficiency_tightergap,
-            "tighter_lp_fractional_nodes": perfect_efficiency_tighter_fractional_nodes,
-        }
+        return self._run_scenario(self.data.copy(), perfect_efficiency_params)
 
     def run_low_efficiency(self) -> dict:
         low_efficiency_params = scenarios.low_efficiency(PARAMS.copy())
-        low_efficiency_basicmip = solve_model(
-            Basic, self.data.copy(), low_efficiency_params
-        )
-        low_efficiency_basiclp, low_efficiency_basic_fractional_nodes = solve_lp_model(
-            Basic, self.data.copy(), low_efficiency_params
-        )
-        low_efficiency_basicgap = low_efficiency_basiclp - low_efficiency_basicmip
-        low_efficiency_tightermip = solve_model(
-            Tighter, self.data.copy(), low_efficiency_params
-        )
-        low_efficiency_tighterlp, low_efficiency_tighter_fractional_nodes = (
-            solve_lp_model(Tighter, self.data.copy(), low_efficiency_params)
-        )
-        low_efficiency_tightergap = low_efficiency_tighterlp - low_efficiency_tightermip
-
-        return {
-            "basic_mip": low_efficiency_basicmip,
-            "basic_lp": low_efficiency_basiclp,
-            "basic_gap": low_efficiency_basicgap,
-            "basic_lp_fractional_nodes": low_efficiency_basic_fractional_nodes,
-            "tighter_mip": low_efficiency_tightermip,
-            "tighter_lp": low_efficiency_tighterlp,
-            "tighter_gap": low_efficiency_tightergap,
-            "tighter_lp_fractional_nodes": low_efficiency_tighter_fractional_nodes,
-        }
+        return self._run_scenario(self.data.copy(), low_efficiency_params)
 
     def run_tight_power_limits(self) -> dict:
         tight_power_limits_params = scenarios.tight_power_limits(PARAMS.copy())
-        tight_power_limits_basicmip = solve_model(
-            Basic, self.data.copy(), tight_power_limits_params
-        )
-        tight_power_limits_basiclp, tight_power_limits_basic_fractional_nodes = (
-            solve_lp_model(Basic, self.data.copy(), tight_power_limits_params)
-        )
-        tight_power_limits_basicgap = (
-            tight_power_limits_basiclp - tight_power_limits_basicmip
-        )
-        tight_power_limits_tightermip = solve_model(
-            Tighter, self.data.copy(), tight_power_limits_params
-        )
-        tight_power_limits_tighterlp, tight_power_limits_tighter_fractional_nodes = (
-            solve_lp_model(Tighter, self.data.copy(), tight_power_limits_params)
-        )
-        tight_power_limits_tightergap = (
-            tight_power_limits_tighterlp - tight_power_limits_tightermip
-        )
-
-        return {
-            "basic_mip": tight_power_limits_basicmip,
-            "basic_lp": tight_power_limits_basiclp,
-            "basic_gap": tight_power_limits_basicgap,
-            "basic_lp_fractional_nodes": tight_power_limits_basic_fractional_nodes,
-            "tighter_mip": tight_power_limits_tightermip,
-            "tighter_lp": tight_power_limits_tighterlp,
-            "tighter_gap": tight_power_limits_tightergap,
-            "tighter_lp_fractional_nodes": tight_power_limits_tighter_fractional_nodes,
-        }
+        return self._run_scenario(self.data.copy(), tight_power_limits_params)
 
     def run_loose_power_limits(self) -> dict:
         loose_power_limits_params = scenarios.loose_power_limits(PARAMS.copy())
-        loose_power_limits_basicmip = solve_model(
-            Basic, self.data.copy(), loose_power_limits_params
-        )
-        loose_power_limits_basiclp, loose_power_limits_basic_fractional_nodes = (
-            solve_lp_model(Basic, self.data.copy(), loose_power_limits_params)
-        )
-        loose_power_limits_basicgap = (
-            loose_power_limits_basiclp - loose_power_limits_basicmip
-        )
-        loose_power_limits_tightermip = solve_model(
-            Tighter, self.data.copy(), loose_power_limits_params
-        )
-        loose_power_limits_tighterlp, loose_power_limits_tighter_fractional_nodes = (
-            solve_lp_model(Tighter, self.data.copy(), loose_power_limits_params)
-        )
-        loose_power_limits_tightergap = (
-            loose_power_limits_tighterlp - loose_power_limits_tightermip
-        )
-
-        return {
-            "basic_mip": loose_power_limits_basicmip,
-            "basic_lp": loose_power_limits_basiclp,
-            "basic_gap": loose_power_limits_basicgap,
-            "basic_lp_fractional_nodes": loose_power_limits_basic_fractional_nodes,
-            "tighter_mip": loose_power_limits_tightermip,
-            "tighter_lp": loose_power_limits_tighterlp,
-            "tighter_gap": loose_power_limits_tightergap,
-            "tighter_lp_fractional_nodes": loose_power_limits_tighter_fractional_nodes,
-        }
+        return self._run_scenario(self.data.copy(), loose_power_limits_params)
 
     def run_small_capacity(self) -> dict:
         small_capacity_params = scenarios.small_capacity(PARAMS.copy())
-        small_capacity_basicmip = solve_model(
-            Basic, self.data.copy(), small_capacity_params
-        )
-        small_capacity_basiclp, small_capacity_basic_fractional_nodes = solve_lp_model(
-            Basic, self.data.copy(), small_capacity_params
-        )
-        small_capacity_basicgap = small_capacity_basiclp - small_capacity_basicmip
-        small_capacity_tightermip = solve_model(
-            Tighter, self.data.copy(), small_capacity_params
-        )
-        small_capacity_tighterlp, small_capacity_tighter_fractional_nodes = (
-            solve_lp_model(Tighter, self.data.copy(), small_capacity_params)
-        )
-        small_capacity_tightergap = small_capacity_tighterlp - small_capacity_tightermip
-
-        return {
-            "basic_mip": small_capacity_basicmip,
-            "basic_lp": small_capacity_basiclp,
-            "basic_gap": small_capacity_basicgap,
-            "basic_lp_fractional_nodes": small_capacity_basic_fractional_nodes,
-            "tighter_mip": small_capacity_tightermip,
-            "tighter_lp": small_capacity_tighterlp,
-            "tighter_gap": small_capacity_tightergap,
-            "tighter_lp_fractional_nodes": small_capacity_tighter_fractional_nodes,
-        }
+        return self._run_scenario(self.data.copy(), small_capacity_params)
 
     def run_large_capacity(self) -> dict:
         large_capacity_params = scenarios.large_capacity(PARAMS.copy())
-        large_capacity_basicmip = solve_model(
-            Basic, self.data.copy(), large_capacity_params
-        )
-        large_capacity_basiclp, large_capacity_basic_fractional_nodes = solve_lp_model(
-            Basic, self.data.copy(), large_capacity_params
-        )
-        large_capacity_basicgap = large_capacity_basiclp - large_capacity_basicmip
-        large_capacity_tightermip = solve_model(
-            Tighter, self.data.copy(), large_capacity_params
-        )
-        large_capacity_tighterlp, large_capacity_tighter_fractional_nodes = (
-            solve_lp_model(Tighter, self.data.copy(), large_capacity_params)
-        )
-        large_capacity_tightergap = large_capacity_tighterlp - large_capacity_tightermip
+        return self._run_scenario(self.data.copy(), large_capacity_params)
+
+    def _run_scenario(self, data: pd.DataFrame, params: dict) -> dict:
+        basic_mip = solve_model(Basic, data, params)
+        (
+            basic_lp,
+            basic_lp_fractional_nodes,
+            basic_negative_price_fractional_share,
+        ) = solve_lp_model(Basic, data, params, self.negative_price_count)
+        tighter_mip = solve_model(Tighter, data, params)
+        (
+            tighter_lp,
+            tighter_lp_fractional_nodes,
+            tighter_negative_price_fractional_share,
+        ) = solve_lp_model(Tighter, data, params, self.negative_price_count)
 
         return {
-            "basic_mip": large_capacity_basicmip,
-            "basic_lp": large_capacity_basiclp,
-            "basic_gap": large_capacity_basicgap,
-            "basic_lp_fractional_nodes": large_capacity_basic_fractional_nodes,
-            "tighter_mip": large_capacity_tightermip,
-            "tighter_lp": large_capacity_tighterlp,
-            "tighter_gap": large_capacity_tightergap,
-            "tighter_lp_fractional_nodes": large_capacity_tighter_fractional_nodes,
+            "basic_mip": basic_mip,
+            "basic_lp": basic_lp,
+            "basic_gap": basic_lp - basic_mip,
+            "basic_lp_fractional_nodes": basic_lp_fractional_nodes,
+            "basic_negative_price_fractional_share": basic_negative_price_fractional_share,
+            "tighter_mip": tighter_mip,
+            "tighter_lp": tighter_lp,
+            "tighter_gap": tighter_lp - tighter_mip,
+            "tighter_lp_fractional_nodes": tighter_lp_fractional_nodes,
+            "tighter_negative_price_fractional_share": tighter_negative_price_fractional_share,
         }

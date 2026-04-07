@@ -1,6 +1,6 @@
 """Helper modules for assignment 5."""
 
-from .metrics import (
+from ..metrics import (
     behavioural_cost,
     equivalent_full_cycles,
     self_comsumption_rate,

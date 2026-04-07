@@ -1,5 +1,4 @@
 import pandas as pd
-import pulp
 import numpy as np
 
 
@@ -56,9 +55,7 @@ def total_grid_exchange(dec_vars: dict, delta: float) -> float:
         _count_time_steps(dec_vars, "electricity_sell_"),
     )
     total_buy = sum(dec_vars.get(f"electricity_buy_{t}", 0.0) for t in range(periods))
-    total_sell = sum(
-        dec_vars.get(f"electricity_sell_{t}", 0.0) for t in range(periods)
-    )
+    total_sell = sum(dec_vars.get(f"electricity_sell_{t}", 0.0) for t in range(periods))
 
     # Total grid exchange is the net energy exchanged with the grid
     total_exchange = (total_buy + total_sell) * delta

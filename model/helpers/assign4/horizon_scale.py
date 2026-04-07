@@ -97,12 +97,18 @@ def _plot_horizon_scaling_gaps(gap_df: pd.DataFrame) -> None:
         gap_df["basic_gap"],
         width=width,
         label="Basic Gap",
+        hatch="//",
+        edgecolor="black",
+        linewidth=0.8,
     )
     ax.bar(
         [position + width / 2 for position in x],
         gap_df["tighter_gap"],
         width=width,
         label="Tighter Gap",
+        hatch="xx",
+        edgecolor="black",
+        linewidth=0.8,
     )
 
     ax.set_xlabel("Scenario")

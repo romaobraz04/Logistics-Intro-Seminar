@@ -7,6 +7,7 @@ flat prices: no arbitrage incentive. If there is no benefit from shifting energy
 price spread scenario:  multiplying price series by 1.5 - arbitrage is more valuable and LP is more probable to exploit fractional solutions. gap is bigger (by exactly 1.5, by definition of objective function)\\
 
 perfect efficiency: charge \& discharge are not symmetric: with discharge efficiency 1/$\eta^{C}$, there is no gap - original asymmetry gives the LP extra room to exploit the relaxation in ways the real battery cannot\\
+- get new plot for symmetrical efficiency for appendix
 
 low efficiency: Low efficiency increases losses, which changes the value of moving energy through the battery - fractional behavior can sometimes “game” these tradeoffs more easily than the true MIP\\
 
@@ -17,4 +18,4 @@ loose power limits: a lot more freedom for LP to charge and discharge - basic fo
 
 smaller capacity: battery cannot shift much energy across time, arbitrage potential is limited: tighter formulation cuts off those fractional solutions - similar to loose power limits case (constraints intuition)\\
 
-larger capacity: with $S^{max}$ large enough...
+larger capacity: basic - with $S^{max}$ large enough, battery can store more electricity at once, so less need to exploit fractional nodes
