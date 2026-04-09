@@ -20,6 +20,16 @@ def solve_model(formulation_cls, data, params, lp=False):
     return pulp.value(model.objective)
 
 
+def solve_model_with_runtime(formulation_cls, data, params, lp=False):
+    model = pulp.LpProblem(
+        f"{formulation_cls.__name__}_{'LP' if lp else 'MIP'}",
+        pulp.LpMaximize,
+    )
+    formulation = formulation_cls(model, data.copy(), params.copy(), lp=lp, msg=False)
+    _, objective_value, runtime_seconds, _ = formulation.run_model()
+    return objective_value, runtime_seconds
+
+
 def count_fractional_nodes(formulation, tol=1e-6):
     return sum(
         1

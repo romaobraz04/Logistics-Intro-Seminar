@@ -21,11 +21,67 @@ FORMULATIONS = {
     "tighter": Tighter,
 }
 FORMULATION_ORDER = ["no_battery", "basic", "tighter"]
+LINE_PLOT_STYLES = {
+    "basic": {
+        "color": "tab:blue",
+        "linestyle": "-",
+        "marker": "o",
+        "markersize": 7,
+        "markerfacecolor": "white",
+        "markeredgecolor": "black",
+        "markeredgewidth": 1.2,
+        "linewidth": 2,
+        "zorder": 3,
+    },
+    "tighter": {
+        "color": "tab:orange",
+        "linestyle": "--",
+        "marker": "s",
+        "markersize": 7,
+        "markerfacecolor": "tab:orange",
+        "markeredgecolor": "black",
+        "markeredgewidth": 1.0,
+        "linewidth": 2,
+        "zorder": 4,
+    },
+    "no_battery": {
+        "color": "tab:green",
+        "linestyle": ":",
+        "marker": "^",
+        "markersize": 7,
+        "markerfacecolor": "white",
+        "markeredgecolor": "black",
+        "markeredgewidth": 1.2,
+        "linewidth": 2,
+        "zorder": 2,
+    },
+}
 
 
 def _sum_prefixed_variables(dec_vars: dict, prefix: str, delta: float) -> float:
     total = sum(value for key, value in dec_vars.items() if key.startswith(prefix))
     return total * delta
+
+
+def _line_plot_offsets(x_values: pd.Series, formulations: list[str]) -> dict[str, float]:
+    unique_values = sorted({float(value) for value in x_values})
+    if len(unique_values) < 2:
+        return {formulation: 0.0 for formulation in formulations}
+
+    steps = [
+        right - left
+        for left, right in zip(unique_values, unique_values[1:])
+        if right > left
+    ]
+    if not steps:
+        return {formulation: 0.0 for formulation in formulations}
+
+    offset_step = min(steps) * 0.2
+    midpoint = (len(formulations) - 1) / 2
+    return {
+        formulation: (index - midpoint) * offset_step
+        for index, formulation in enumerate(formulations)
+    }
 
 
 class assign5wrapper:
@@ -370,6 +426,7 @@ class assign5wrapper:
         formulations = (
             formulations if formulations is not None else list(FORMULATIONS.keys())
         )
+        x_offsets = _line_plot_offsets(valid["grid_fee_eur_per_kwh"], formulations)
         fig, ax = plt.subplots(figsize=(9, 5))
         for formulation_name in formulations:
             subset = valid[valid["formulation"] == formulation_name].sort_values(
@@ -378,18 +435,19 @@ class assign5wrapper:
             if subset.empty:
                 continue
 
+            style = LINE_PLOT_STYLES.get(formulation_name, {}).copy()
             ax.plot(
-                subset["grid_fee_eur_per_kwh"],
+                subset["grid_fee_eur_per_kwh"] + x_offsets.get(formulation_name, 0.0),
                 subset[metric],
-                marker="o",
-                linewidth=2,
                 label=formulation_name.replace("_", " "),
+                **style,
             )
 
         ax.set_xlabel("Grid Fee (EUR/kWh)")
         ax.set_ylabel(ylabel)
         ax.set_title(title)
         ax.set_xticks(self.fee_levels)
+        ax.set_axisbelow(True)
         ax.grid(True, alpha=0.3)
         ax.legend()
         fig.tight_layout()
