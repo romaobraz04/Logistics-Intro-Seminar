@@ -10,9 +10,20 @@ from formulations.params import PARAMS
 from formulations.tighter import Tighter
 from helpers.metrics import equivalent_full_cycles
 from helpers.assign5.wrapper import FORMULATION_ORDER
+from helpers.assign6.wrapper import LINE_PLOT_STYLES, _line_plot_offsets
 from helpers.assign7 import scenarios as sc
 
 FORMULATIONS = {"basic": Basic, "tighter": Tighter}
+
+SOC_STYLES = {
+    "perfect_foresight":    {"color": "black",      "linestyle": "-",  "linewidth": 2.5, "zorder": 6},
+    "weekly":               {"color": "tab:blue",   "linestyle": "-",  "linewidth": 2,   "marker": "o", "markersize": 4, "markevery": 4, "zorder": 5},
+    "two_day":              {"color": "tab:orange",  "linestyle": "--", "linewidth": 2,   "marker": "s", "markersize": 4, "markevery": 4, "zorder": 4},
+    "day_ahead":            {"color": "tab:green",  "linestyle": "-.", "linewidth": 2,   "marker": "^", "markersize": 4, "markevery": 4, "zorder": 3},
+    "epex_day_ahead":       {"color": "tab:red",    "linestyle": ":",  "linewidth": 2,   "marker": "v", "markersize": 4, "markevery": 4, "zorder": 3},
+    "day_ahead_naive":      {"color": "tab:purple", "linestyle": "--", "linewidth": 2,   "marker": "D", "markersize": 4, "markevery": 6, "zorder": 2},
+    "epex_day_ahead_naive": {"color": "tab:brown",  "linestyle": "-.", "linewidth": 2,   "marker": "x", "markersize": 5, "markevery": 6, "zorder": 2},
+}
 
 
 class assign7wrapper:
@@ -486,6 +497,12 @@ class assign7wrapper:
         pivot = pivot.reindex([s for s in sc.MAIN_SCENARIO_NAMES if s in pivot.index])
         fig, ax = plt.subplots(figsize=(10, 5))
         pivot.plot(kind="bar", ax=ax)
+        hatches = ["//", "xx"]
+        for container, hatch in zip(ax.containers, hatches):
+            for patch in container:
+                patch.set_hatch(hatch)
+                patch.set_edgecolor("black")
+                patch.set_linewidth(0.8)
         ax.set_title(
             "Total Profit by Foresight Scenario\n"
             "(negative values = net cost; mandatory household load)"
@@ -498,7 +515,7 @@ class assign7wrapper:
         ax.grid(True, alpha=0.3, axis="y")
         ax.legend(title="formulation")
         fig.tight_layout()
-        fig.savefig(self.output_dir / "assignment7_profit_comparison.png", dpi=150)
+        fig.savefig(self.output_dir / "assignment7_profit_comparison.png", dpi=300)
         plt.close(fig)
 
     def _plot_vpi(self, results: pd.DataFrame) -> None:
@@ -512,6 +529,12 @@ class assign7wrapper:
         pivot = pivot.reindex([s for s in order if s in pivot.index])
         fig, ax = plt.subplots(figsize=(10, 5))
         pivot.plot(kind="bar", ax=ax)
+        hatches = ["//", "xx"]
+        for container, hatch in zip(ax.containers, hatches):
+            for patch in container:
+                patch.set_hatch(hatch)
+                patch.set_edgecolor("black")
+                patch.set_linewidth(0.8)
         ax.set_title("Value of Perfect Information (VPI)")
         ax.set_xlabel("Scenario")
         ax.set_ylabel("VPI (EUR)")
@@ -521,12 +544,12 @@ class assign7wrapper:
         ax.grid(True, alpha=0.3, axis="y")
         ax.legend(title="formulation")
         fig.tight_layout()
-        fig.savefig(self.output_dir / "assignment7_vpi.png", dpi=150)
+        fig.savefig(self.output_dir / "assignment7_vpi.png", dpi=300)
         plt.close(fig)
 
     def _plot_soc_profile(self, profiles: dict[str, list]) -> None:
         """Figure 2b: average daily SoC profile by scenario."""
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(13, 5))
         hours = np.arange(24)
         for scenario_name, soc in profiles.items():
             if len(soc) < 24:
@@ -536,18 +559,17 @@ class assign7wrapper:
             if n_days == 0:
                 continue
             avg = soc_arr[: n_days * 24].reshape(n_days, 24).mean(axis=0)
-            ax.plot(hours, avg, label=scenario_name.replace("_", " "), linewidth=1.5)
+            style = SOC_STYLES.get(scenario_name, {"linewidth": 2})
+            ax.plot(hours, avg, label=scenario_name.replace("_", " "), **style)
         ax.set_xlabel("Hour of Day")
         ax.set_ylabel("Average SoC (kWh)")
-        ax.set_title(
-            "Average Daily SoC Profile by Foresight Scenario\n"
-            "(Perfect foresight may be hidden behind weekly/two-day — profiles near-identical)"
-        )
+        ax.set_title("Average Daily SoC Profile by Foresight Scenario")
         ax.set_xticks(hours)
-        ax.legend(fontsize=8)
+        ax.set_axisbelow(True)
         ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=9, loc="upper left", bbox_to_anchor=(1.01, 1), borderaxespad=0)
         fig.tight_layout()
-        fig.savefig(self.output_dir / "assignment7_soc_profile.png", dpi=150)
+        fig.savefig(self.output_dir / "assignment7_soc_profile.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
 
     def _plot_solve_time(self, results: pd.DataFrame) -> None:
@@ -559,6 +581,12 @@ class assign7wrapper:
         pivot = pivot.reindex([s for s in sc.MAIN_SCENARIO_NAMES if s in pivot.index])
         fig, ax = plt.subplots(figsize=(10, 5))
         pivot.plot(kind="bar", ax=ax)
+        hatches = ["//", "xx"]
+        for container, hatch in zip(ax.containers, hatches):
+            for patch in container:
+                patch.set_hatch(hatch)
+                patch.set_edgecolor("black")
+                patch.set_linewidth(0.8)
         ax.set_title("Total Solve Time by Foresight Scenario")
         ax.set_xlabel("Scenario")
         ax.set_ylabel("Time (seconds)")
@@ -568,29 +596,28 @@ class assign7wrapper:
         ax.grid(True, alpha=0.3, axis="y")
         ax.legend(title="formulation")
         fig.tight_layout()
-        fig.savefig(self.output_dir / "assignment7_solve_time.png", dpi=150)
+        fig.savefig(self.output_dir / "assignment7_solve_time.png", dpi=300)
         plt.close(fig)
 
     def _plot_fee_sensitivity(self, fee_df: pd.DataFrame) -> None:
         """Figure 3a: day-ahead VPI vs grid fee (two panels: EUR and %)."""
+        formulation_names = [f for f in FORMULATION_ORDER if f in fee_df["formulation"].unique()]
+        x_offsets = _line_plot_offsets(fee_df["grid_fee_eur_per_kwh"], formulation_names)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-        for formulation_name in FORMULATION_ORDER:
+        for formulation_name in formulation_names:
             sub = fee_df[fee_df["formulation"] == formulation_name].sort_values(
                 "grid_fee_eur_per_kwh"
             )
-            if sub.empty:
-                continue
             label = formulation_name.replace("_", " ")
-            ax1.plot(
-                sub["grid_fee_eur_per_kwh"], sub["vpi_eur"], marker="o", label=label
-            )
-            ax2.plot(
-                sub["grid_fee_eur_per_kwh"], sub["vpi_pct"], marker="o", label=label
-            )
+            style = LINE_PLOT_STYLES.get(formulation_name, {})
+            x = sub["grid_fee_eur_per_kwh"] + x_offsets.get(formulation_name, 0.0)
+            ax1.plot(x, sub["vpi_eur"], label=label, **style)
+            ax2.plot(x, sub["vpi_pct"], label=label, **style)
         for ax, ylabel in [(ax1, "VPI (EUR)"), (ax2, "VPI (%)")]:
             ax.set_xlabel("Grid Fee (EUR/kWh)")
             ax.set_ylabel(ylabel)
             ax.set_xticks(sc.GRID_FEE_LEVELS)
+            ax.set_axisbelow(True)
             ax.legend()
             ax.grid(True, alpha=0.3)
         ax1.set_title("Day-Ahead VPI vs Grid Fee Level")
@@ -600,35 +627,28 @@ class assign7wrapper:
             fontsize=11,
         )
         fig.tight_layout()
-        fig.savefig(self.output_dir / "assignment7_vpi_vs_grid_fee.png", dpi=150)
+        fig.savefig(self.output_dir / "assignment7_vpi_vs_grid_fee.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
 
     def _plot_deg_sensitivity(self, deg_df: pd.DataFrame) -> None:
         """Figure 3b: day-ahead VPI vs degradation cost (two panels: EUR and %)."""
+        formulation_names = [f for f in FORMULATION_ORDER if f in deg_df["formulation"].unique()]
+        x_offsets = _line_plot_offsets(deg_df["degradation_cost_eur_per_kwh"], formulation_names)
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-        for formulation_name in FORMULATION_ORDER:
+        for formulation_name in formulation_names:
             sub = deg_df[deg_df["formulation"] == formulation_name].sort_values(
                 "degradation_cost_eur_per_kwh"
             )
-            if sub.empty:
-                continue
             label = formulation_name.replace("_", " ")
-            ax1.plot(
-                sub["degradation_cost_eur_per_kwh"],
-                sub["vpi_eur"],
-                marker="o",
-                label=label,
-            )
-            ax2.plot(
-                sub["degradation_cost_eur_per_kwh"],
-                sub["vpi_pct"],
-                marker="o",
-                label=label,
-            )
+            style = LINE_PLOT_STYLES.get(formulation_name, {})
+            x = sub["degradation_cost_eur_per_kwh"] + x_offsets.get(formulation_name, 0.0)
+            ax1.plot(x, sub["vpi_eur"], label=label, **style)
+            ax2.plot(x, sub["vpi_pct"], label=label, **style)
         for ax, ylabel in [(ax1, "VPI (EUR)"), (ax2, "VPI (%)")]:
             ax.set_xlabel("Degradation Cost (EUR/kWh throughput)")
             ax.set_ylabel(ylabel)
             ax.set_xticks(sc.DEG_LEVELS)
+            ax.set_axisbelow(True)
             ax.legend()
             ax.grid(True, alpha=0.3)
         ax1.set_title("Day-Ahead VPI vs Degradation Cost")
@@ -639,6 +659,6 @@ class assign7wrapper:
         )
         fig.tight_layout()
         fig.savefig(
-            self.output_dir / "assignment7_vpi_vs_degradation_cost.png", dpi=150
+            self.output_dir / "assignment7_vpi_vs_degradation_cost.png", dpi=300, bbox_inches="tight"
         )
         plt.close(fig)

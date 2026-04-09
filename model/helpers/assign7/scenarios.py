@@ -9,13 +9,12 @@ Each dict describes one rolling-horizon foresight scenario:
   terminal        terminal boundary strategy: "hard_floor" | "soft_valuation" | None
 """
 
-
-GRID_FEE = 0.02           
-DEGRADATION_COST = 0.01   
+GRID_FEE = 0.02
+DEGRADATION_COST = 0.01
 
 # Sensitivity sweep levels
-GRID_FEE_LEVELS = [0, 0.01, 0.02, 0.03, 0.04, 0.05]  
-DEG_LEVELS = [0.0, 0.005, 0.01, 0.02, 0.03]           
+GRID_FEE_LEVELS = [0, 0.01, 0.02, 0.03, 0.04, 0.05]
+DEG_LEVELS = [0.0, 0.005, 0.01, 0.02, 0.03]
 
 
 PERFECT_FORESIGHT = {
@@ -105,7 +104,12 @@ ALL_SCENARIOS = [
 MAIN_SCENARIO_NAMES = [
     s["name"]
     for s in [
-        PERFECT_FORESIGHT, WEEKLY, TWO_DAY, DAY_AHEAD, EPEX_DAY_AHEAD,
-        DAY_AHEAD_NAIVE, EPEX_DAY_AHEAD_NAIVE,
+        PERFECT_FORESIGHT,
+        WEEKLY,
+        TWO_DAY,
+        DAY_AHEAD,
+        EPEX_DAY_AHEAD,
+        DAY_AHEAD_NAIVE,
+        EPEX_DAY_AHEAD_NAIVE,
     ]
 ]
