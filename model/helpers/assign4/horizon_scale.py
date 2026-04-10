@@ -10,7 +10,7 @@ from . import scenarios
 from .wrapper import solve_model_with_runtime
 
 sizes = [0.1, 0.2, 0.5, 0.75]
-periods = ["start", "middle", "end"]
+periods = ["first", "middle", "last"]
 output_dir = Path("outputs/assignment4")
 results_path = output_dir / "assignment4_horizon_scaling_results.csv"
 gap_results_path = output_dir / "assignment4_horizon_scaling_gaps.csv"
@@ -24,7 +24,7 @@ def run_horizon_scaling(data: pd.DataFrame) -> pd.DataFrame:
     for size in sizes:
         for period in periods:
             scaled_data = scenarios.horizon_scale(base_data, size, period)
-            scenario_label = f"{size:.0%} - {period}"
+            scenario_label = f"{period} {size:.0%}"
             for formulation in [Basic, Tighter]:
                 for lp in [False, True]:
                     profit, runtime_seconds = solve_model_with_runtime(

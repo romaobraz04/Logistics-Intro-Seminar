@@ -88,15 +88,18 @@ def horizon_scale(data: pd.DataFrame, size: float, period: str) -> pd.DataFrame:
     Args:
     data: project data
     size: proportion of the dataset to be studied, e.g. 0.1 for 10%, 0.75 for 75%
-    period: period to be studied - 'start', 'middle' or 'end'
+    period: period to be studied - 'first', 'middle', or 'last'
     """
-    if period == "start":
+    period_aliases = {"start": "first", "middle": "middle", "end": "last"}
+    normalized_period = period_aliases.get(period, period)
+
+    if normalized_period == "first":
         return data.head(int(data.shape[0] * size))
-    elif period == "middle":
+    elif normalized_period == "middle":
         start_index = int((data.shape[0] - (data.shape[0] * size)) / 2)
         end_index = start_index + int(data.shape[0] * size)
         return data.iloc[start_index:end_index]
-    elif period == "end":
+    elif normalized_period == "last":
         return data.tail(int(data.shape[0] * size))
     else:
-        raise ValueError("Invalid period. Choose 'start', 'middle', or 'end'.")
+        raise ValueError("Invalid period. Choose 'first', 'middle', or 'last'.")
